@@ -16,13 +16,7 @@
 
 pragma solidity 0.4.24;
 
-
-import { DetailedERC20 } from "zeppelin-solidity/contracts/token/ERC20/DetailedERC20.sol";
-import { ERC20 } from "zeppelin-solidity/contracts/token/ERC20/ERC20.sol";
-import { StandardToken } from "zeppelin-solidity/contracts/token/ERC20/StandardToken.sol";
-import { SafeMath } from "zeppelin-solidity/contracts/math/SafeMath.sol";
-import { ISetFactory } from "./interfaces/ISetFactory.sol";
-import "../lib/AddressArrayUtils.sol";
+import { Ownable } from "zeppelin-solidity/contracts/ownership/Ownable.sol";
 
 
 /**
@@ -34,50 +28,77 @@ import "../lib/AddressArrayUtils.sol";
  *
  */
 
- contract FactoryDispatcher {
+ contract FactoryDispatcher is
+    Ownable
+ {
+
+    /* ============ Constants ============ */
+    string constant INVALID_FACTORY = "Factory is disabled or does not exist.";
 
     /* ============ State Variables ============ */
 
-    //Mapping of Factory IDs to the factory contract
-    mapping (uint => address) public setTokenFactories;
+    // Mapping of tracked SetToken factories
+    mapping(address => bool) public validFactories;
 
     /* ============ Events ============ */
 
-    event FactoryUpdated(
-        uint indexed _factoryId,
+    event NewFactoryAdded(
         address indexed _newFactoryAddress,
-        address indexed _oldFactoryAddress,
         address _addedBy
     );
+
+    event FactoryRemoved(
+        address indexed _factoryAddress,
+        address _addedBy
+    );
+
+    /* ============ State Variables ============ */
+
+    //Verify factory is known to Core
+    modifier isValidFactory(address _factoryAddress) {
+        require(
+            validFactories[_factoryAddress],
+            INVALID_FACTORY
+        );
+        _;
+    }
 
     /* ============ No Constructor ============ */
 
     /* ============ Setter Functions ============ */
 
-    function updateTokenFactory(
-        uint _factoryId,
-        address _newFactoryAddress,
-        address _oldFactoryAddress
+    function addNewFactory(
+        address _newFactoryAddress
     )
         external
+        onlyOwner
     {
         //Check that new Factory address is not 0
         require(_newFactoryAddress == address(0));
 
-        // To prevent unintentional overwrite make sure that oldAddress passed is
-        // equal to current address. If no current address, then _oldFactoryAddress
-        // should be zero.
-        address currentFactoryAddress = setTokenFactories[_factoryId];
-        require(currentFactoryAddress == _oldFactoryAddress);
-
         //Set new factory address to index
-        setTokenFactories[_factoryId] = _newFactoryAddress;
+        validFactories[_newFactoryAddress] = true;
 
-        //Emit FactoryUpdated event
-        emit FactoryUpdated(
-            _factoryId,
+        //Emit NewFactoryAdded event
+        emit NewFactoryAdded(
             _newFactoryAddress,
-            _oldFactoryAddress,
+            msg.sender
+        );
+    }
+
+    function removeFactory(
+        address _factoryAddress
+    )
+        external
+        onlyOwner
+        isValidFactory(_factoryAddress)
+    {
+        //Set factory address to false
+        validFactories[_factoryAddress] = false;
+
+        //Emit FactoryRemoved event
+        emit FactoryRemoved(
+            _factoryAddress,
             msg.sender
         );
     }

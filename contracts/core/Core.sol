@@ -378,7 +378,7 @@ contract Core is
      * @param  _name            string        The name of the new Set
      * @param  _symbol          string        The symbol of the new Set
      * @return setTokenAddress address        The address of the new Set
-     */ 
+     */
     function create(
         address _factoryAddress,
         address[] _components,
